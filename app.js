@@ -1,5 +1,5 @@
 
-const API = "https://stock-news-backend-h2sr.onrender.com
+const API = "https://stock-news-backend-h2sr.onrender.com"
 
 let all = [];
 let filter = "All";
