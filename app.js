@@ -1,3 +1,4 @@
+
 const API = "https://stock-news-backend-h2sr.onrender.com
 
 let all = [];
