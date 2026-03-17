@@ -56,5 +56,3 @@ document.getElementById("filters").addEventListener("click", e => {
 
 load();
 setInterval(load, 5 * 60 * 1000);
-Wrote & tested   →    Stored code     →    Render (backend API)
-backend code          in 2 repos           GitHub Pages (website)
