@@ -56,28 +56,5 @@ document.getElementById("filters").addEventListener("click", e => {
 
 load();
 setInterval(load, 5 * 60 * 1000);
-```
-
-7. Click **"Commit new file"**
-
----
-
-## Step 12 — Enable GitHub Pages
-
-1. In your `stock-news-frontend` repo → click **"Settings"** tab
-2. Click **"Pages"** in the left sidebar
-3. Under "Source" → select **"Deploy from a branch"**
-4. Branch: **main**, Folder: **/ (root)** → click **Save**
-5. Wait 2–3 minutes → refresh the page
-6. You'll see: **"Your site is live at `https://YOURNAME.github.io/stock-news-frontend`"**
-
-**Open that link. Your website is live on the internet.** 🎉
-
----
-
-# Summary of what you built
-```
-Google Colab          GitHub               Live Internet
-─────────────         ──────────           ──────────────
 Wrote & tested   →    Stored code     →    Render (backend API)
 backend code          in 2 repos           GitHub Pages (website)
