@@ -7,50 +7,173 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; }
-    header { background: #1a1d2e; padding: 16px 24px; border-bottom: 1px solid #2d3148; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 20px; color: #a78bfa; }
+
+    header {
+      background: #1a1d2e;
+      padding: 14px 24px;
+      border-bottom: 1px solid #2d3148;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 20px; color: #a78bfa; display:flex; align-items:center; gap:8px; }
     header p { font-size: 13px; color: #64748b; }
-    .filters { padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 8px; }
-    .btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #2d3148; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; }
+
+    .topbar {
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .date-select {
+      background: #1a1d2e;
+      color: #e2e8f0;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .date-select:focus { outline: none; border-color: #6d28d9; }
+
+    .refreshbar {
+      font-size: 12px;
+      color: #475569;
+      margin-left: auto;
+    }
+    .refreshbar a { color: #7dd3fc; text-decoration: none; }
+    .refreshbar strong { color: #a78bfa; }
+
+    .filters {
+      padding: 12px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #2d3148;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
     .btn.active, .btn:hover { background: #6d28d9; color: #fff; border-color: #6d28d9; }
-    #grid { padding: 0 24px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-    .card { background: #1a1d2e; border-radius: 12px; padding: 16px; border: 1px solid #2d3148; }
+    .btn.empty { opacity: 0.35; }
+
+    #grid {
+      padding: 0 24px 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #1a1d2e;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #2d3148;
+      transition: border-color 0.2s;
+    }
     .card:hover { border-color: #6d28d9; }
+    .card.high-impact { border-left: 3px solid #a78bfa; }
+
     .top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .sector { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #2d3148; color: #a78bfa; }
-    .score { font-size: 12px; padding: 3px 10px; border-radius: 4px; font-weight: 700; margin-left: auto; }
+    .sector {
+      font-size: 11px; padding: 3px 8px; border-radius: 4px;
+      background: #2d3148; color: #a78bfa; font-weight: 500;
+    }
+    .score {
+      font-size: 12px; padding: 4px 10px; border-radius: 4px;
+      font-weight: 700; margin-left: auto;
+    }
     .bull { background: #14532d; color: #4ade80; }
     .bear { background: #4c0519; color: #f87171; }
     .neut { background: #1e293b; color: #94a3b8; }
-    h3 { font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+
+    h3 { font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
     h3 a { color: #e2e8f0; text-decoration: none; }
     h3 a:hover { color: #a78bfa; }
-    .reason { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 10px; }
-    .tickers { display: flex; flex-wrap: wrap; gap: 4px; }
-    .ticker { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: #0f1117; color: #7dd3fc; border: 1px solid #1e3a5f; }
-    .meta { font-size: 11px; color: #334155; margin-top: 8px; }
-    #status { text-align: center; padding: 60px; color: #64748b; font-size: 15px; }
-    .refreshbar { font-size: 12px; color: #475569; padding: 4px 24px 12px; }
+
+    .stocks-label {
+      font-size: 11px; color: #64748b; margin-bottom: 4px; margin-top: 8px;
+    }
+    .tickers { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    .ticker {
+      font-size: 11px; padding: 3px 8px; border-radius: 4px;
+      background: #0f1117; color: #7dd3fc;
+      border: 1px solid #1e3a5f; font-weight: 600;
+    }
+
+    .impact-bar {
+      display: flex; align-items: center; gap: 8px; margin: 8px 0;
+    }
+    .impact-label { font-size: 11px; color: #64748b; min-width: 55px; }
+    .bar-track {
+      flex: 1; background: #1e293b; border-radius: 4px; height: 6px;
+    }
+    .bar-fill { height: 6px; border-radius: 4px; transition: width 0.3s; }
+    .bar-score { font-size: 11px; min-width: 28px; font-weight: 600; }
+
+    .reason { font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 8px; }
+    .meta { font-size: 11px; color: #334155; margin-top: 10px; }
+
+    #status {
+      text-align: center; padding: 60px;
+      color: #64748b; font-size: 15px;
+      grid-column: 1 / -1;
+    }
+
+    .summary-bar {
+      padding: 10px 24px;
+      display: flex; gap: 16px; flex-wrap: wrap;
+      background: #13161f;
+      border-bottom: 1px solid #1e293b;
+      font-size: 12px;
+    }
+    .summary-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>📈 NSE Pulse</h1>
-    <p>Live Indian Market News · AI-Powered Analysis</p>
-  </header>
-  <div class="filters" id="filters">
-    <button class="btn active" data-s="All">All</button>
-    <button class="btn" data-s="Banking">Banking</button>
-    <button class="btn" data-s="IT">IT</button>
-    <button class="btn" data-s="Oil & Gas">Oil &amp; Gas</button>
-    <button class="btn" data-s="Pharma">Pharma</button>
-    <button class="btn" data-s="Auto">Auto</button>
-    <button class="btn" data-s="FMCG">FMCG</button>
-    <button class="btn" data-s="Metal">Metal</button>
-    <button class="btn" data-s="Market-Wide">Market-Wide</button>
-  </div>
-  <div class="refreshbar" id="refreshbar"></div>
-  <div id="grid"><div id="status">⏳ Loading news and running AI analysis... (first load ~20 seconds)</div></div>
-  <script src="app.js"></script>
+
+<header>
+  <h1>📈 NSE Pulse</h1>
+  <p>Live Indian Market News · AI-Powered Analysis</p>
+</header>
+
+<div class="topbar">
+  <span style="font-size:13px; color:#94a3b8;">Showing news for:</span>
+  <select class="date-select" id="date-select">
+    <option value="">Loading dates...</option>
+  </select>
+  <div class="refreshbar" id="refreshbar">Loading...</div>
+</div>
+
+<div class="summary-bar" id="summary-bar"></div>
+
+<div class="filters" id="filters">
+  <button class="btn active" data-s="All">All</button>
+  <button class="btn" data-s="Banking">Banking</button>
+  <button class="btn" data-s="IT">IT</button>
+  <button class="btn" data-s="Oil & Gas">Oil &amp; Gas</button>
+  <button class="btn" data-s="Pharma">Pharma</button>
+  <button class="btn" data-s="Auto">Auto</button>
+  <button class="btn" data-s="FMCG">FMCG</button>
+  <button class="btn" data-s="Metal">Metal</button>
+  <button class="btn" data-s="Market-Wide">Market-Wide</button>
+</div>
+
+<div id="grid">
+  <div id="status">⏳ Loading news and running AI analysis...<br><small style="color:#475569">First load takes 20–30 seconds</small></div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
