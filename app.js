@@ -1,139 +1,244 @@
-
-const API = "https://stock-news-backend-h2sr.onrender.com"
+const API = "https://stock-news-backend-h2sr.onrender.com";
 
 let all = [];
-let filter = "All";
+let filtered = [];
+let activeFilter = "All";
+let activeDate = "";
 let lastFetchTime = null;
-const REFRESH_INTERVAL = 60 * 60 * 1000; // 60 minutes
+const REFRESH_MS = 60 * 60 * 1000;
+
+// ── Helpers ──────────────────────────────────────────────
 
 function scoreClass(s) {
-  if (s > 0) return "bull";
-  if (s < 0) return "bear";
-  return "neut";
+  return s > 0 ? "bull" : s < 0 ? "bear" : "neut";
 }
 
-function scoreBar(score) {
-  const abs = Math.abs(score);
-  const fill = score > 0 ? "#4ade80" : score < 0 ? "#f87171" : "#94a3b8";
-  const width = (abs / 10) * 100;
-  return `
-    <div style="margin: 8px 0; display:flex; align-items:center; gap:8px;">
-      <span style="font-size:11px; color:#64748b; min-width:60px;">Impact</span>
-      <div style="flex:1; background:#1e293b; border-radius:4px; height:6px;">
-        <div style="width:${width}%; background:${fill}; height:6px; border-radius:4px;"></div>
-      </div>
-      <span style="font-size:11px; color:${fill}; min-width:20px;">${score > 0 ? "+" : ""}${score}</span>
-    </div>`;
+function scoreColor(s) {
+  return s > 0 ? "#4ade80" : s < 0 ? "#f87171" : "#94a3b8";
 }
 
-function stockBadges(stocks) {
-  if (!stocks || stocks.length === 0) return "";
-  return `
-    <div style="margin: 8px 0;">
-      <div style="font-size:11px; color:#64748b; margin-bottom:4px;">Stocks to watch</div>
-      <div style="display:flex; flex-wrap:wrap; gap:4px;">
-        ${stocks.map(t => `
-          <span style="font-size:11px; padding:3px 8px; border-radius:4px;
-            background:#0f1117; color:#7dd3fc; border:1px solid #1e3a5f;
-            font-weight:600;">
-            ${t}
-          </span>`).join("")}
-      </div>
-    </div>`;
+function fmtTime(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleTimeString("en-IN", {
+      hour: "2-digit", minute: "2-digit", hour12: true
+    });
+  } catch { return ""; }
 }
 
-function card(a) {
+function fmtSource(s) {
+  return (s || "").replace(/_/g, " ");
+}
+
+// ── Card renderer ─────────────────────────────────────────
+
+function renderCard(a) {
   const sign = a.score > 0 ? "+" : "";
-  const sentimentIcon = a.sentiment === "Bullish" ? "▲" : a.sentiment === "Bearish" ? "▼" : "●";
+  const icon = a.sentiment === "Bullish" ? "▲" : a.sentiment === "Bearish" ? "▼" : "●";
+  const cls = scoreClass(a.score);
+  const color = scoreColor(a.score);
+  const barWidth = Math.round((Math.abs(a.score) / 10) * 100);
+  const isHighImpact = Math.abs(a.score) >= 6;
+
+  const stocksHtml = (a.affected_stocks && a.affected_stocks.length > 0)
+    ? `<div class="stocks-label">Stocks to watch</div>
+       <div class="tickers">
+         ${a.affected_stocks.map(t =>
+           `<span class="ticker">${t}</span>`
+         ).join("")}
+       </div>`
+    : "";
+
   return `
-    <div class="card" data-sector="${a.sector || 'Other'}">
+    <div class="card ${isHighImpact ? "high-impact" : ""}" data-sector="${a.sector || "Other"}">
       <div class="top">
         <span class="sector">${a.sector || "Other"}</span>
-        <span class="score ${scoreClass(a.score)}">${sentimentIcon} ${a.sentiment} ${sign}${a.score}</span>
+        <span class="score ${cls}">${icon} ${a.sentiment} ${sign}${a.score}</span>
       </div>
+
       <h3><a href="${a.url}" target="_blank" rel="noopener">${a.title}</a></h3>
-      ${stockBadges(a.affected_stocks)}
-      ${scoreBar(a.score)}
+
+      ${stocksHtml}
+
+      <div class="impact-bar">
+        <span class="impact-label">Impact</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${barWidth}%; background:${color};"></div>
+        </div>
+        <span class="bar-score" style="color:${color}">${sign}${a.score}/10</span>
+      </div>
+
       <p class="reason">${a.reason || ""}</p>
-      <div class="meta">${a.source?.replace(/_/g," ")} · ${a.published ? new Date(a.published).toLocaleTimeString("en-IN") : ""}</div>
+      <div class="meta">${fmtSource(a.source)} · ${fmtTime(a.published)}</div>
     </div>`;
 }
 
-function render() {
-  const items = filter === "All"
-    ? all
-    : all.filter(a => a.sector === filter);
+// ── Render grid ───────────────────────────────────────────
+
+function renderGrid() {
+  const items = activeFilter === "All"
+    ? filtered
+    : filtered.filter(a => a.sector === activeFilter);
 
   if (items.length === 0) {
     document.getElementById("grid").innerHTML =
-      `<div id="status">No ${filter} news right now. Try another category.</div>`;
+      `<div id="status">No news found for <strong>${activeFilter}</strong> on this date.</div>`;
     return;
   }
-
-  document.getElementById("grid").innerHTML = items.map(card).join("");
+  document.getElementById("grid").innerHTML = items.map(renderCard).join("");
 }
 
-function updateCounters() {
-  // Update count badges on filter buttons
-  document.querySelectorAll(".btn").forEach(btn => {
+// ── Update filter button counts ───────────────────────────
+
+function updateFilters() {
+  document.querySelectorAll(".btn[data-s]").forEach(btn => {
     const s = btn.dataset.s;
     const count = s === "All"
-      ? all.length
-      : all.filter(a => a.sector === s).length;
+      ? filtered.length
+      : filtered.filter(a => a.sector === s).length;
+
     btn.textContent = count > 0 ? `${s} (${count})` : s;
-    // Dim buttons with no news
-    btn.style.opacity = (count === 0 && s !== "All") ? "0.4" : "1";
+    btn.classList.toggle("empty", count === 0 && s !== "All");
   });
 }
 
-function updateRefreshTimer() {
-  if (!lastFetchTime) return;
-  const nextRefresh = new Date(lastFetchTime + REFRESH_INTERVAL);
-  const now = new Date();
-  const minsLeft = Math.max(0, Math.round((nextRefresh - now) / 60000));
-  document.getElementById("refreshbar").innerHTML =
-    `Last updated: ${new Date(lastFetchTime).toLocaleTimeString("en-IN")} &nbsp;·&nbsp;
-     Next refresh in: <strong style="color:#a78bfa">${minsLeft} min</strong> &nbsp;·&nbsp;
-     <a href="#" onclick="forceRefresh()" style="color:#7dd3fc; text-decoration:none;">Refresh now</a>`;
+// ── Summary bar (bullish/bearish/neutral counts) ──────────
+
+function updateSummary() {
+  const bull = filtered.filter(a => a.sentiment === "Bullish").length;
+  const bear = filtered.filter(a => a.sentiment === "Bearish").length;
+  const neut = filtered.filter(a => a.sentiment === "Neutral").length;
+  const highImpact = filtered.filter(a => Math.abs(a.score) >= 6).length;
+
+  document.getElementById("summary-bar").innerHTML = `
+    <div class="summary-item">
+      <div class="dot" style="background:#4ade80"></div>
+      <span style="color:#4ade80">${bull} Bullish</span>
+    </div>
+    <div class="summary-item">
+      <div class="dot" style="background:#f87171"></div>
+      <span style="color:#f87171">${bear} Bearish</span>
+    </div>
+    <div class="summary-item">
+      <div class="dot" style="background:#94a3b8"></div>
+      <span style="color:#94a3b8">${neut} Neutral</span>
+    </div>
+    <div class="summary-item" style="margin-left:auto">
+      <span style="color:#a78bfa">⚡ ${highImpact} high impact news</span>
+    </div>`;
 }
+
+// ── Refresh timer display ─────────────────────────────────
+
+function updateRefreshBar() {
+  if (!lastFetchTime) return;
+  const minsLeft = Math.max(0,
+    Math.round((lastFetchTime + REFRESH_MS - Date.now()) / 60000)
+  );
+  document.getElementById("refreshbar").innerHTML =
+    `Updated: ${new Date(lastFetchTime).toLocaleTimeString("en-IN")}
+     &nbsp;·&nbsp; Next refresh: <strong>${minsLeft} min</strong>
+     &nbsp;·&nbsp; <a href="#" onclick="forceRefresh(event)">Refresh now</a>`;
+}
+
+// ── Load dates dropdown ───────────────────────────────────
+
+async function loadDates() {
+  try {
+    const res = await fetch(`${API}/dates`);
+    const dates = await res.json();
+    const sel = document.getElementById("date-select");
+    sel.innerHTML = dates.map(d =>
+      `<option value="${d.value}" ${d.label === "Today" ? "selected" : ""}>
+        ${d.label}
+      </option>`
+    ).join("");
+    activeDate = dates[0]?.value || "";
+  } catch (e) {
+    console.error("Could not load dates", e);
+  }
+}
+
+// ── Main load function ────────────────────────────────────
 
 async function load(forceNew = false) {
   document.getElementById("refreshbar").textContent = "Fetching latest news...";
   try {
-    const url = forceNew ? `${API}/news?refresh=true` : `${API}/news`;
+    let url = `${API}/news`;
+    const params = [];
+    if (forceNew) params.push("refresh=true");
+    if (activeDate) params.push(`date=${activeDate}`);
+    if (params.length) url += "?" + params.join("&");
+
     const res = await fetch(url);
-    if (!res.ok) throw new Error();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     all = await res.json();
+    filtered = all;
     lastFetchTime = Date.now();
-    updateCounters();
-    render();
-    updateRefreshTimer();
-    // Update timer every minute
-    setInterval(updateRefreshTimer, 60000);
-  } catch {
+
+    updateFilters();
+    updateSummary();
+    renderGrid();
+    updateRefreshBar();
+
+  } catch (e) {
+    console.error(e);
     document.getElementById("grid").innerHTML =
-      `<div id="status">❌ Backend is starting up — wait 30 seconds and refresh the page.</div>`;
-    document.getElementById("refreshbar").textContent = "Could not connect to backend.";
+      `<div id="status">
+        ❌ Could not load news.<br>
+        <small style="color:#475569">
+          Backend may be starting up — wait 30 seconds and
+          <a href="#" onclick="location.reload()" style="color:#7dd3fc">refresh</a>
+        </small>
+      </div>`;
+    document.getElementById("refreshbar").textContent = "Connection failed.";
   }
 }
 
-function forceRefresh() {
+function forceRefresh(e) {
+  if (e) e.preventDefault();
   document.getElementById("grid").innerHTML =
-    `<div id="status">⏳ Fetching fresh news... this takes about 20 seconds.</div>`;
+    `<div id="status">⏳ Fetching fresh news... (~20 seconds)</div>`;
   load(true);
 }
+
+// ── Event listeners ───────────────────────────────────────
 
 document.getElementById("filters").addEventListener("click", e => {
   const s = e.target.dataset.s;
   if (!s) return;
-  filter = s;
+  activeFilter = s;
   document.querySelectorAll(".btn").forEach(b => b.classList.remove("active"));
   e.target.classList.add("active");
-  render();
+  renderGrid();
 });
 
-// Initial load
-load();
+document.getElementById("date-select").addEventListener("change", e => {
+  activeDate = e.target.value;
+  document.getElementById("grid").innerHTML =
+    `<div id="status">⏳ Loading news for selected date...</div>`;
+  load(true);
+});
 
-// Auto refresh every 60 minutes
-setInterval(() => load(true), REFRESH_INTERVAL);
+// ── Init ──────────────────────────────────────────────────
+
+async function init() {
+  await loadDates();
+  await load();
+  setInterval(() => load(true), REFRESH_MS);
+  setInterval(updateRefreshBar, 60000);
+}
+
+init();
+```
+
+Commit changes.
+
+---
+
+# Step 6 — Verify Gemini is working
+
+After Render redeploys (2-3 mins), open this debug URL in your browser:
+```
+https://stock-news-backend-h2sr.onrender.com/debug
